@@ -1,0 +1,348 @@
+"use strict";
+
+var selectedVal;
+
+var operationsText =   "<input type=\"radio\" name=\"operations\" value=\"generateTable\">Generate Table</input><br>" +
+    "<input type=\"radio\" name=\"operations\" value=\"createRecord\">Create Record</input><br>" +
+    "<input type=\"radio\" name=\"operations\" value=\"readRecord\">Read Record</input><br>" +
+    "<input type=\"radio\" name=\"operations\" value=\"updateRecord\">Update Record</input><br>" +
+    "<input type=\"radio\" name=\"operations\" value=\"deleteRecord\">Delete Record</input><br>" +    
+    "<input type=\"radio\" name=\"operations\" value=\"dropTable\">Drop Table</input><br>" +
+    "<input type='button' value='Go' id='doOp'><br>";
+
+var customerFormCreate="Customer Data<br>"+
+    "<table>" +
+    "<tr><td>First Name</td><td><textarea id='customerCreateFirstName' row='1' col='50'/></td></tr>"+
+    "<tr><td>Last Name</td><td><textarea id='customerCreateLastName' row='1' col='50'/></td></tr>"+
+    "<tr><td>Account Balance</td><td><textarea id='customerCreateAccountBalance' row='1' col='50'/></td></tr>"+
+    "<tr><td>Age</td><td><textarea id='customerCreateAge' row='1' col='50'/></td></tr>"+
+    "<tr><td>Active</td><td><textarea id='customerCreateActive' row='1' col='50'/></td></tr>"+
+    "<tr><td>Start Date</td><td><textarea id='customerCreateStartDate' row='1' col='50'/></td></tr>"+
+    "</table>" +
+    "<br>"+
+    "Customer Map Entry Data<br>"+
+    "<table>" +
+    "<tr><td>Key</td><td><textarea id='customerMapEntryCreateKey' row='1' col='50'/></td></tr>"+
+    "<tr><td>Value</td><td><textarea id='customerMapEntryCreateValue' row='1' col='50'/></td></tr>"+
+    "</table>" +
+    "<button onclick='createRecord()'>Create Record</button>";
+
+var customerReadInput="Read<br> <table><tr><td>Table</td><td><textarea id='tableName' row='1' col='10'/></td></tr><tr><td>Comparison Column Name</td><td><textarea id='compColName' row='1' col='10'/></td></tr><tr><td>Comparison Type</td><td><textarea id='compType' row='1' col='10'/></td></tr><tr><td>Comparison Value</td><td><textarea id='compValue' row='1' col='10'/></td></tr></table><button onclick='readRecord()'>Read Record</button>";
+
+var customerUpdateInput="Update<br>"+
+    "<table>" +
+    "<tr><td>Table</td><td><textarea id='updateTableName' row='1' col='10'/></td></tr>" +
+    "<tr><td>Update Column Name</td><td><textarea id='updateColName' row='1' col='10'/></td></tr>" +
+    "<tr><td>Update Column Value</td><td><textarea id='updateColValue' row='1' col='10'/></td></tr>" +
+    "<tr><td>Comparison Column Name</td><td><textarea id='updateCompColName' row='1' col='10'/></td></tr>" +
+    "<tr><td>Comparison Type</td><td><textarea id='updateCompType' row='1' col='10'/></td></tr>" +
+    "<tr><td>Comparison Value</td><td><textarea id='updateCompValue' row='1' col='10'/></td></tr>" +
+    "</table>" +
+    "<br>" +
+    "<button onclick='updateRecord()'>Update Record</button>";
+
+var customerDeleteInput="Delete<br>" +
+    "<table>"+
+    "<tr><td>Table</td><td><textarea id='deleteTableName' row='1' col='10'/></td></tr>"+
+    "<tr><td>Comparison Column Name</td><td><textarea id='deleteCompColName' row='1' col='10'/></td></tr>"+
+    "<tr><td>Comparison Type</td><td><textarea id='deleteCompType' row='1' col='10'/></td></tr>"+
+    "<tr><td>Comparison Value</td><td><textarea id='deleteCompValue' row='1' col='10'/></td></tr>"+
+    "</table>"+
+    "<br>" +
+    "<button onclick='deleteRecord()'>Delete Record</button>";
+
+function deleteRecord(){
+    var deleteTable=$('textarea#deleteTableName').val();
+    var deleteCompColName=$('textarea#deleteCompColName').val();
+    var deleteCompType=$('textarea#deleteCompType').val();
+    var deleteCompValue=$('textarea#deleteCompValue').val();
+    var deleteString= "{\"table\":\""+deleteTable+"\", " +
+	"\"comps\":[ {\"column\":\""+deleteCompColName+"\" , \"comp\":\""+deleteCompType+"\", \"value\":\""+deleteCompValue+"\" }]}";
+    console.log("deleteString="+deleteString);
+
+    $("#input").hide();
+    $("#output").hide()
+    $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+	    crossDomain: true,
+            url:    "http://localhost:8080/crudService"+selectedVal+"/delete?input="+deleteString,
+            success: function(msg) {
+		$("#output").html("<br> SUCCESS!  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            },
+            error: function(msg) {
+		$("#output").html("<br> ERROR  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            }
+    });
+}
+
+function updateRecord(){
+    var tableToUpdate=$('textarea#updateTableName').val();
+    var updateColName = $('textarea#updateColName').val();
+    var updateColValue = $('textarea#updateColValue').val();
+    var updateCompColName = $('textarea#updateCompColName').val();
+    var updateCompType = $('textarea#updateCompType').val();
+    var updateCompValue = $('textarea#updateCompValue').val();
+
+    var updateString = "{\"table\":\""+tableToUpdate+"\",\"colval\":[{\"column\":\""+updateColName+"\",\"value\":\""+updateColValue+"\"}],\"comps\":[ {\"column\":\""+updateCompColName+"\" , \"comp\":\""+updateCompType+"\",\"value\":\""+updateCompValue+"\" }]}";
+
+    console.log("updateString="+updateString);
+
+    $("#input").hide();
+    $("#output").hide()
+    $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+	    crossDomain: true,
+            url:    "http://localhost:8080/crudService"+selectedVal+"/update?input="+updateString,
+            success: function(msg) {
+		$("#output").html("<br> SUCCESS!  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            },
+            error: function(msg) {
+		$("#output").html("<br> ERROR  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            }
+    });    
+    
+}
+
+function readRecord(){
+    var tableToRead=$('textarea#tableName').val();
+    var compColName=$('textarea#compColName').val();
+    var compType=$('textarea#compType').val();
+    var compValue=$('textarea#compValue').val();
+    var readString= "{\"table\":\""+tableToRead+"\", " +
+	"\"comps\":[ {\"column\":\""+compColName+"\" , \"comp\":\""+compType+"\", \"value\":\""+compValue+"\" }]}";
+    console.log("readString="+readString);
+
+    $("#input").hide();
+    $("#output").hide()
+    $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+	    crossDomain: true,
+            url:    "http://localhost:8080/crudService"+selectedVal+"/read?input="+readString,
+            success: function(msg) {
+		$("#output").html("<br> SUCCESS!  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            },
+            error: function(msg) {
+		$("#output").html("<br> ERROR  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            }
+    });
+					
+}
+
+function createSecondaryTable(serviceType,key,value){
+
+    var createSecondaryTableString;
+    if (selectedVal == "Mysql"){
+	createSecondaryTableString="{\"table\":\"customermapentry\", \"colval\":[ {\"column\":\"keycol\", \"value\":\""+key+"\" }, {\"column\":\"value\" ,\"value\":\""+value+"\" }]}";
+    }
+    else{
+	createSecondaryTableString="{\"table\":\"customermapentry\", \"colval\":[ {\"column\":\"key\", \"value\":\""+key+"\" }, {\"column\":\"value\" ,\"value\":\""+value+"\" }]}";
+    }
+    
+    console.log("http://localhost:8080/crudService"+serviceType+"/create?input="+createSecondaryTableString);
+    $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+	    crossDomain: true,
+            url:    "http://localhost:8080/crudService"+serviceType+"/create?input="+createSecondaryTableString,
+            success: function(msg) {
+                //need to build createCustomerMapEntryString and pass it to method that does that ajax call here
+	    
+		$("#output").html("<br> SUCCESS!  Service returned:  "+JSON.stringify(msg));
+            },
+            error: function(msg) {
+		$("#output").html("<br> ERROR  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            }
+    });    
+}
+
+
+function createRecord(){
+    //Customer
+    var customerCreateFirstName = $('textarea#customerCreateFirstName').val();
+    var customerCreateLastName = $('textarea#customerCreateLastName').val();
+    var customerCreateAccountBalance = $('textarea#customerCreateAccountBalance').val();
+    var customerCreateAge = $('textarea#customerCreateAge').val();
+    var customerCreateActive = $('textarea#customerCreateActive').val();
+    var customerCreateStartDate = $('textarea#customerCreateStartDate').val();
+   
+    //Customer Map Entry Data
+    var customerMapEntryCreateKey = $('textarea#customerMapEntryCreateKey').val();
+    var customerMapEntryCreateValue = $('textarea#customerMapEntryCreateValue').val();
+    
+    console.log("customerCreateFirstName="+customerCreateFirstName);
+    console.log("customerCreateLastName="+customerCreateLastName);
+    console.log("customerCreateAccountBalance="+customerCreateAccountBalance);
+    console.log("customerCreateAge="+customerCreateAge);
+    console.log("customerCreateActive="+customerCreateActive);
+    console.log("customerCreateStartDate="+customerCreateStartDate);
+   
+    //Customer Map Entry Data
+    console.log("customerMapEntryCreateKey="+customerMapEntryCreateKey);     //need to use this value as alias in Customer rec
+    console.log("customerMapEntryCreateValue="+customerMapEntryCreateValue);
+
+    
+    var createCustomerString="{\"table\":\"customer\", \"colval\":[ {\"column\":\"startdate\", \"value\":\""+customerCreateStartDate+"\" }, {\"column\":\"accountbalance\" ,\"value\":\""+customerCreateAccountBalance+"\" }, {\"column\":\"age\" ,\"value\":\""+customerCreateAge+"\" }, {\"column\":\"firstname\" , \"value\":\""+customerCreateFirstName+"\" }, {\"column\":\"lastname\", \"value\":\""+customerCreateLastName+"\" }, {\"column\":\"isactive\" ,\"value\":\""+customerCreateActive+"\" }, {\"column\":\"alias\" ,\"value\":\""+customerMapEntryCreateKey+"\" }]}";
+    
+    $("#input").hide();
+    $("#output").hide();
+    $.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+	    crossDomain: true,
+            url:    "http://localhost:8080/crudService"+selectedVal+"/create?input="+createCustomerString,
+            success: function(msg) {
+                //need to build createCustomerMapEntryString and pass it to method that does that ajax call here
+	    
+		$("#output").html("<br> SUCCESS!  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+		createSecondaryTable(selectedVal,customerMapEntryCreateKey,customerMapEntryCreateValue);
+            },
+            error: function(msg) {
+		$("#output").html("<br> ERROR  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            }
+    });
+    
+    
+}
+
+
+function handleDrop(){
+
+    var tableName = $('textarea#tableToDrop').val()
+    console.log("selectedVal="+selectedVal+" dropping table " + tableName);
+    $("#input").hide();
+    $("#output").hide()
+   /*$.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+	    crossDomain: true,
+            url:    "http://localhost:8080/crudService"+selectedVal+"/deleteTable?input="+tableName,
+            success: function(msg) {
+		$("#output").html("<br> SUCCESS!  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            },
+            error: function(msg) {
+		$("#output").html("<br> ERROR  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            }
+	    });*/
+    $.ajax({
+            type: "POST",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+	    //crossDomain: true,
+            url:    "http://odm.capbpm.com:8080/crudService"+selectedVal+"PotentialFix/deleteTable?input="+tableName,
+            success: function(msg) {
+		$("#output").html("<br> SUCCESS!  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            },
+            error: function(msg) {
+		$("#output").html("<br> ERROR  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            }
+    });
+}
+
+function handleCassandra(op){
+
+    if (op == "generateTable"){
+	console.log("calling gen table");
+
+	$.ajax({
+            type: "GET",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+	    crossDomain: true,
+            //beforeSend: function (xhr) {
+            //   xhr.setRequestHeader("Access-Control-Allow-Origin", "*");
+            //},
+            url:    "http://localhost:8080/crudService"+selectedVal+"/generateTable3?input=https%3A%2F%2Fbpm.capbpm.com%3A9443%2Fwebapi%2FViewSchema.jsp%3Ftype%3DCustomer%26version%3D2064.374d42f7-af28-4f6d-a1c0-b34453c39b64T",
+            //data: "{\"loginToken\":\""+"\",  \"password\":\""+"\", \"gpsLat\":\""+currentLat+"\", \"gpsLong\":\""+currentLong+"\", \"searchRadius\":\""+searchRadius+"\"}",
+            success: function(msg) {
+		$("#output").html("<br> SUCCESS!  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+		//console.log("success msg="+msg);
+            },
+            error: function(msg) {
+		$("#output").html("<br> ERROR  Service returned:  "+JSON.stringify(msg));
+		$("#output").show();
+            	//alert("cassandra generateTable3 returned=["+msg+"]");
+            }
+          });		
+    }
+    else if (op == "dropTable"){
+	$("#input").html("<br>Enter table to drop: <textarea id='tableToDrop' rows='1' cols='100'/><br><button onclick='handleDrop()'>Drop Table</button>");
+	$("#input").show();
+    }
+    else if (op == "createRecord"){
+	$("#input").html(customerFormCreate);
+	$("#input").show();	
+    }
+    else if (op == "readRecord"){
+	$("#input").html(customerReadInput);
+	$("#input").show();	
+    }
+    else if (op == "updateRecord"){
+	$("#input").html(customerUpdateInput);
+	$("#input").show();	
+    }
+    else if (op == "deleteRecord"){
+	$("#input").html(customerDeleteInput);
+	$("#input").show();
+    }
+}
+
+
+
+function myFunction(){
+
+    console.log("HERE I AM");
+
+      $("#isSelect").click(function () {
+		
+	  selectedVal = $('input:radio[name=sex]:checked').val();
+
+	  $("#operations").html("<br>you clicked "+selectedVal+"<br>"+operationsText);
+
+          $("#doOp").click(function () {
+
+	     $("#output").hide();
+	     var selectedOp = $('input:radio[name=operations]:checked').val();
+	     console.log ("you are going to do "+selectedOp+" for "+selectedVal);
+
+	      if (selectedVal == "Cassandra"){
+		  handleCassandra(selectedOp);
+	      }
+	      else if (selectedVal == "Mysql"){
+		  handleCassandra(selectedOp);
+	      }
+	      else if (selectedVal == "Elasticsearch"){
+		  handleCassandra(selectedOp);
+	      }
+	      else if (selectedVal == "Mongo"){
+		  handleCassandra(selectedOp);
+	      }
+          });
+	  
+      });
+
+
+    
+}

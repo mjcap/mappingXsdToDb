@@ -1,0 +1,124 @@
+I have a mobile app.
+
+It consists of 2 screens.  The first is for capturing user
+credentials and the 2nd is for displaying data.
+
+The idea is to collect the credentials on screen 1.
+
+Then make an ajax call with the credentials to get data and present it on
+screen 2.
+
+Then allow the user to select some data from screen 2.  Use the
+selected data to make another ajax call and get more data - THEN
+delete all the data on screen 2 and repopulate it with the new data.
+
+First thing I want to find out:  is my design sound?
+
+I'm having a problem and I think its related to event handling.
+
+Here's my code:
+
+    "use strict";
+
+    var app = {
+
+        onDeviceReady: function() {
+	
+            $('#startButton').click(function(){
+                 app.getDeptsForUser();
+	    });
+
+        },
+        getDeptsForUser: function(){
+
+	        var parms = new Object();
+	        parms.userName = assignedUser;
+	        app.getData(JSON.stringify(parms),"ENDPOINT1", "Departments");
+
+	        $.mobile.changePage("#index", { transition: 'slide' });
+
+        },
+        getData: function(paramStr, endpoint, displayHeader){
+
+	    var paramStrObj = JSON.parse(paramStr);
+	    var serverName = server + ":" + port;
+	    var encoded = Base64().encode(paramStrObj.userName + ':' + pass);
+	    var authType =  'Basic ' + encoded;
+	
+	    var option = endpoint+"?action=start&params=" + paramStr;
+	    var URL = serverName + "/rest/bpm/wle/v1/service/"+option;
+
+	    $.ajax({
+            url: URL,
+            type: "POST",
+            crossDomain: true,
+            jsonp: "callback",
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader("Authorization", authType);
+            },
+            success: function (result) {
+
+	        console.log("MobileMockUp getData() ajax success result="+JSON.stringify(result));
+	        if (endpoint === "ENDPOINT1"){
+		    app.displayData(paramStr, endpoint,"Departments", result.data.data.depts.items);
+                }
+      	        else if (endpoint === "ENDPOINT2"){
+		    app.displayData(paramStr, endpoint,displayHeader, result.data.data.checklists.items);
+                }
+	        else if (endpoint === "ENDPOINT3"){
+		    app.displayData(paramStr, endpoint,displayHeader, result.data.data.checks.items);
+	        }
+
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                    alert('Unable to retrieve '+displayHeader);
+            },
+            });
+        },
+        displayData: function(currParms,currEndPt, headerText, list){
+
+	    var nextEndpt;
+            var nextHeaderText;
+	    var currParmsObj = JSON.parse(currParms);
+    
+	    if (currEndPt === "MD@getDeptsForUser"){
+	        nextEndpt = "MD@getCheckLists";
+	        nextHeaderText = "Check Lists";
+	    }
+	    else if (currEndPt === "MD@getCheckLists"){
+	        nextEndpt = "MD@getChecks";
+	    }
+	
+	    var htmlListString="";
+	    var parmObj;
+	    var newLink;
+	
+	    $('#headerText').text(headerText);
+
+	
+            for (var i = 0; i < list.length; i++){
+
+	        parmObj = new Object();
+	        if (currEndPt === "ENDPOINT1"){
+	          parmObj.userName=currParmsObj.userName;
+	          parmObj.dept=list[i];
+	        }
+                else if (currEndPt === "ENDPOINT2"){
+	          parmObj.userName=currParmsObj.userName;
+	          parmObj.dept=currParmsObj.dept;
+	          parmObj.checklist=list[i];	
+	        }
+	        else if (currEndPt === "ENDPOINT3"){
+		    nextHeaderText = list[i];
+	        }
+	    
+	        var str = JSON.stringify(parmObj);
+	        str = str.toString().replace(/"/g, '\\"');
+		
+	        newLink = "<a style='background:#ffffff;padding-top:5%;border-top: thin solid black; display:block;font-size:12px;font-weight:normal;color:#000000;text-decoration: none;'  href='#' onclick='app.getData(\""+str+"\",\""+nextEndpt+"\",\""+nextHeaderText+"\")'><pre>" + list[i] + "     </pre></a><br>";
+
+	         htmlListString=htmlListString+newLink;
+
+	    }
+        }   
+};

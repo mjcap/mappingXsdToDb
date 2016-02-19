@@ -1,0 +1,385 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+"use strict";
+
+var taskList = new Array();
+
+var tmdDevice = new Object();
+
+var assignedUser = "";
+var pass = "";
+var server = "";
+var port = "";
+
+var app = {
+    // Application Constructor
+    initialize: function() {
+        this.bindEvents();
+    },
+    // Bind Event Listeners
+    //
+    // Bind any events that are required on startup. Common events are:
+    // 'load', 'deviceready', 'offline', and 'online'.
+    bindEvents: function() {
+        document.addEventListener('deviceready', this.onDeviceReady, false);
+    },
+
+    // deviceready Event Handler
+    //
+    // The scope of 'this' is the event. In order to call the 'receivedEvent'
+    // function, we must explicitly call 'app.receivedEvent(...);'
+    onDeviceReady: function() {
+        app.receivedEvent('deviceready');
+	console.log("MobileMockUp2 in onDeviceReady() after calling app.receivedEvent()");
+
+	var onSuccess = function(someData){
+	    
+	    //someData=[{"address":"00:40:B3:8C:5F:16","name":"PAR-TMD200-5F16"}]
+	    console.log("MobileMockUp onDeviceReady().getPaired() onSuccess() someData=["+JSON.stringify(someData)+"]");
+	    
+	    if ((someData.length > 0) && ("address" in someData[0]) && (someData[0].address.trim() != "")){
+		
+	        var onDiscoveredUuids = function(deviceWithUuid){
+	          console.log("MobileMockUp onDeviceiscovered() onDeviceDiscoveredGotUuids=["+JSON.stringify(deviceWithUuid)+"]");
+		  if (('uuids' in deviceWithUuid) && (deviceWithUuid.uuids.length > 0) && (deviceWithUuid.uuids[0].trim() != "")){	
+	            tmdDevice.uuid = deviceWithUuid.uuids[0];
+	            //$('#deviceNameTextArea').val("address: "+tmdDevice.address+" uuid: "+tmdDevice.uuid);
+		    alert("Discovery Complete!");
+		  }
+		  else{
+		    alert("Unable to detect device");
+		  }
+	        };
+
+	        var onDiscoverUuidsError = function(msg){
+		    alert("ERROR GETTING UUID msg=["+JSON.stringify(msg)+"]"); 
+	        };
+	    
+   	        tmdDevice.address = someData[0].address;
+	        //get uuid
+	        window.bluetooth.getUuids(onDiscoveredUuids, onDiscoverUuidsError, tmdDevice.address);		
+
+	    }
+	    else{
+		alert ("NO ADDRESS DETECTED");
+	    }
+	};
+
+	var onError = function(){
+	    alert("No paired device");
+	};
+	
+	window.bluetooth.getPaired(onSuccess, onError);
+
+
+	
+	$('#discoverDeviceButton').click(function(){
+	    app.discoverDevice();
+        });
+
+        $('#startButton').click(function(){
+            app.getDeptsForUser();
+	});
+
+        $('#readTempFromTmdButton').click(function(){ app.readTempFromTMD() });
+
+        //$(document).on("pageshow", "#index", function () {
+	//  var myScroll = new IScroll('#taskListScrollableDiv', {
+        //    bounce: false
+        //});
+	//});
+
+	$('#mainPageHeaderId').bind( "tap", function(){
+	    if (('address' in tmdDevice) && ('uuid' in tmdDevice)){
+		alert("address: "+tmdDevice.address+" uuid: "+tmdDevice.uuid);
+	    }
+	    else{
+		
+	    }
+	});
+
+    },
+    getDeptsForUser: function(){
+
+	assignedUser = $('#assignedUser').val();
+	pass = $('#pass').val();
+	server = $('#server').val();
+	port = $('#port').val();
+
+	if (assignedUser.trim() == ""){
+	    alert("Please enter a user name");
+	}
+	else if (pass.trim() == ""){
+	    alert("Password cannot be blank");
+	}
+	else if (server.trim() == ""){
+	    alert("Please enter a server name");
+	}
+	else if (port.trim() == ""){
+	    alert("Please enter a port number");
+	    var regex=/^[0-9]+$/;
+            if (port.match(regex)){
+                alert("Port number cannot contain any letters");
+            }
+	}
+	else{
+
+	
+	    console.log("getTasksByUser assignedUser=["+assignedUser+"] pass=["+pass+"] server=["+server+"] port=["+port+"]");
+	    console.log("getTasksBuUser URL=["+URL+"]");
+
+	    app.getData(server, port, assignedUser, pass, "MD@getDeptsForUser", app.displayTaskList, "Departments");
+	}
+
+
+
+    },
+    getData: function(svr, prt, user, password, endpoint, displayCallback, displayHeader){
+	taskList.length=0;
+
+	var serverName = svr + ":" + prt;
+	var encoded = Base64().encode(user + ':' + password);
+	var authType =  'Basic ' + encoded;
+	
+	var option = endpoint+"?action=start&params={\"userName\":\""+user+"\"}";
+	var URL = serverName + "/rest/bpm/wle/v1/service/"+option;
+	
+	$.ajax({
+        url: URL,
+        type: "POST",
+        crossDomain: true,
+        jsonp: "callback",
+        beforeSend: function (xhr) {
+            xhr.setRequestHeader("Authorization", authType);
+        },
+        success: function (result) {
+
+	    console.log("getTasksByUser result="+JSON.stringify(result));
+	    displayCallback(displayHeader, result.data.data.item);	    
+
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+                alert('Unable to retrieve '+displayHeader);
+
+                console.log('MobileMockUp jqXHR=['+JSON.stringify(jqXHR)+']');
+                console.log('MobileMockUp textStatus=['+textStatus+']');
+                console.log('MobileMockUp errorThrown=['+errorThrown+']');
+            },
+        });
+    },
+    displayTaskList: function(headerText, list){
+	console.log("MobileMockUp displayTaskList() START");
+	
+	var htmlListString="";
+	$('#headerText').text(headerText);
+
+	
+        for (var i = 0; i < list.length; i++){
+
+		htmlListString=htmlListString+"<a style='background:#ffffff;padding-top:5%;border-top: thin solid black; display:block;font-size:12px;font-weight:normal;color:#000000;text-decoration: none;' href='#' onclick='app.tempTask("+list[i].id+",\"" + list[i].text + "\")'><pre><img src=\"img/task.png\"></img>   " + list[i] + "     </pre></a><br>";		
+
+	}
+
+	
+
+        $('#taskListUL').empty();
+	$('#taskListUL').append(htmlListString);
+        $.mobile.changePage("#index", { transition: 'slide' });
+	
+        //$('#index').hide().show(0);
+
+	//$('a').bind('click', function(e) {
+        //   e.stopImmediatePropagation();
+        //});
+    },    
+    tempTask: function(someId, someText){
+
+	console.log("MobileMockUp tempTask() START someId="+someId+" someText="+someText);
+
+	if (!('address' in tmdDevice) || !('uuid' in tmdDevice)){
+	    if (confirm('Put TMD in discoverable mode and hit OK')) {
+               app.discoverDevice();
+            } 
+	}
+	else{
+
+
+	    $.mobile.changePage("#tempTask", { 
+	   	                 transition: 'slide' });
+
+	    //$('#tempTaskNameTextArea').val("Task:  "+someText);
+	    $('#tempTaskNameH1').text(someText);
+	    //TO DO do i need this any more?
+	    $('#readTempFromTmdButton').bind('click', function(e) {
+                 e.stopImmediatePropagation();
+	    });
+
+	}
+
+	
+    },
+    nonTempTask: function(someId, someText){
+            $.mobile.changePage("#nonTempTask", { 
+		  transition: 'slide' });	
+    },
+    discoverDevice: function(){
+	console.log("MobileMockUp pairWithDevice() START");
+	var onDeviceDiscovered = function(discoveredDevice){
+
+	    var onDeviceDiscoveredGotUuids = function(deviceWithUuid){
+	      console.log("MobileMockUp onDeviceDiscovered() onDeviceDiscoveredGotUuids=["+JSON.stringify(deviceWithUuid)+"]");
+		if (('uuids' in deviceWithUuid) && (deviceWithUuid.uuids.length > 0) && (deviceWithUuid.uuids[0].trim() != "")){	
+	            tmdDevice.uuid = deviceWithUuid.uuids[0];
+	            //$('#deviceNameTextArea').val("address: "+tmdDevice.address+" uuid: "+tmdDevice.uuid);
+		    //alert("Discovery Complete!");
+		}
+		else{
+		    alert("Unable to detect device");
+		}
+	    };
+
+	    var onDeviceDiscoveredOnError = function(msg){
+		console.log("MobileMockUp onDeviceDiscoveredOnError msg=["+JSON.stringify(msg)+"]"); 
+	    };
+	    
+	    console.log("MobileMockUp onDeviceDiscovered discoveredDevice=["+JSON.stringify(discoveredDevice)+"]");
+	    if (discoveredDevice.address.trim() != ""){
+		tmdDevice.address = discoveredDevice.address;
+	        //get uuid
+	        window.bluetooth.getUuids(onDeviceDiscoveredGotUuids, onDeviceDiscoveredOnError, tmdDevice.address);		
+	    }
+	    else{
+		alert("Device Discover Failed");
+	    }
+	
+	};
+	
+	var onDiscoveryFinished = function(){
+	};
+	window.bluetooth.startDiscovery(onDeviceDiscovered, onDiscoveryFinished, onDiscoveryFinished);
+    },
+    readTempFromTMD: function(){
+	console.log("MobileMockUp readTempFromTMD() START");
+        if (confirm("Take Temperature")){
+
+	//alert ("Take Temperature");
+	
+    	    var onConnectionEstablished = function(){
+
+	        console.log("MobileMockup tempTask() onConnectionEstablished START");
+
+	        var stopConnectionManagerSuccess = function(){
+		    console.log("MobileMockUp tempTask() stopConnectionManager succeeded");
+	        };
+
+	        var stopConnectionManagerFail = function(){
+		    console.log("MobileMockUp tempTask() stopConnectionManager failed");
+	        };
+
+	        var disconnectSuccess = function(){
+		    console.log("MobileMockUp tempTask() disconnect succeeded");
+	        };
+
+	        var disconnectFail = function(){
+		    console.log("MobileMockUp tempTask() disconnect failed");
+	        };
+		
+	        var onMessageReceived = function(msg){
+		    //alert("RECEIVED msg=["+msg+"]");
+		    $('#statusDiv').append('<p align="left" style="font-size:24px"> '+msg+'<p>'); 
+		    //window.bluetooth.stopConnectionManager(stopConnectionManagerSuccess, stopConnectionManagerFail);
+		    console.log("MobileMockUp readTempFromTMD() calling window.bluetooth.disconnect()");
+                    window.bluetooth.disconnect(disconnectSuccess, disconnectFail);
+	        };
+
+	        var onConnectionLost = function(){
+		    //alert("CONNECTION LOST");
+		    //window.bluetooth.stopConnectionManager(stopConnectionManagerSuccess, stopConnectionManagerFail);
+		    console.log("MobileMockUp readTempFromTMD() calling window.bluetooth.disconnect()");
+                    window.bluetooth.disconnect(disconnectSuccess, disconnectFail);		    
+	        };
+
+	        console.log("MobileMockUp readTempFromTMD() calling window.bluetooth.startConnectionManager()");		
+	        window.bluetooth.startConnectionManager(onMessageReceived, onConnectionLost);
+	    };
+	
+	    var onError = function(msg){
+	      //alert("WE HAD ERROR msg=["+JSON.stringify(msg)+"]");
+	    };
+
+	    console.log("MobileMockUp readTempFromTMD() calling window.bluetooth.connect()");
+	    window.bluetooth.connect(onConnectionEstablished, onError, { address: tmdDevice.address,uuid: tmdDevice.uuid});
+	}
+    },
+    sendTemp: function(){
+        alert ("SEND TEMP");	
+    },
+    rebuildTasks: function(someId, someText){
+	
+	taskList = new Array();
+	alert("in rebuildTasks() someId="+someId);
+	if (someId == 1){
+	    //taskList = [{id:4, text:"Task A1"}, {id:5, text:"Task B1"}, {id:6, text:"Task C1"}];
+	    id = 4;
+	    for (var i = 1; i < 400; i++){
+	      obj = new Object();
+	      obj.id = id;
+	      obj.text = "Text A" + i;
+	      taskList[i-1] = obj;
+	      id = id + 1;	
+	    }
+	}
+	else if (someId == 2){
+	    taskList = [{id:7, text:"Task A2"}, {id:8, text:"Task B2"}, {id:9, text:"Task C2"}];
+	}
+	else if (someId == 3){
+	    taskList = [{id:10, text:"Task A3"}, {id:11, text:"Task B3"}, {id:12, text:"Task C3"}];
+	}
+	else if (someId == 4){
+	}
+	else if (someId == 5){
+	}
+	else if (someId == 6){
+	}
+	else if (someId == 7){
+	}
+	else if (someId == 8){
+	}
+	else if (someId == 9){
+	}
+	else if (someId == 10){
+	}
+	else if (someId == 11){
+	}
+	else if (someId == 12){
+	}
+	app.displayTaskList(someText,taskList);
+	//$('#index').empty();
+	//$.mobile.changePage("#index", { 
+	//	  transition: 'slide' });
+	//$('#index').hide().show(0);
+    },
+    // Update DOM on a Received Event
+    receivedEvent: function(id) {
+        console.log('Received Event: ' + id);
+    }
+};
+
+app.initialize();

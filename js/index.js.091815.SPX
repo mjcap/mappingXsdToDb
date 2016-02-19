@@ -1,0 +1,650 @@
+"use strict";
+
+var tmdDevice = new Object();
+
+var pass = "";
+var server = "";
+var port = "";
+
+var globalCurrentParmArr;
+
+var app = {
+    // Application Constructor
+    initialize: function() {
+        this.bindEvents();
+    },
+    // Bind Event Listeners
+    //
+    // Bind any events that are required on startup. Common events are:
+    // 'load', 'deviceready', 'offline', and 'online'.
+    bindEvents: function() {
+        document.addEventListener('deviceready', this.onDeviceReady, false);
+	document.addEventListener("backbutton", this.onBackKeyDown, false);
+    },
+    onBackKeyDown:  function() {
+	var parmArrToGoBack = new Array();
+	// Handle the back button
+	/*
+             if currentPage is loginDivId then exit
+             if currentPage is index
+             if currentPage is tempTask then show index 
+        */
+	var currentPageId = $.mobile.pageContainer.pagecontainer( 'getActivePage' ).attr( 'id' );
+	if (currentPageId === "loginDivId"){
+	    //neither of these work...
+	    //navigator.device.exitApp();
+	    //device.app.exitApp();
+	}
+	else if (currentPageId === "index"){
+	    console.log("MobileMockUp onBackKeyDown globalCurrentParmArr="+globalCurrentParmArr);
+	    if (globalCurrentParmArr !== undefined && globalCurrentParmArr !== null) {
+	        //alert("YOU HIT BACK on pageId="+currentPageId);
+		if (globalCurrentParmArr[0] === "SPX@getDeptsForUser"){
+	             $.mobile.changePage("#loginDivId", { transition: 'slide' });
+		}
+		else if (globalCurrentParmArr[0] === "SPX@getCheckLists"){
+		    parmArrToGoBack[0] = "SPX@getDeptsForUser";
+		    parmArrToGoBack[1] = "Departments";
+	            parmArrToGoBack[2] = globalCurrentParmArr[2];
+		    globalCurrentParmArr.pop();
+		    app.getData(parmArrToGoBack);
+		}
+		else if (globalCurrentParmArr[0] === "SPX@getChecks"){
+		    parmArrToGoBack[0] = "SPX@getCheckLists";
+		    parmArrToGoBack[1] = "Check Lists";
+	            parmArrToGoBack[2] = globalCurrentParmArr[2];
+		    parmArrToGoBack[3] = globalCurrentParmArr[3];
+		    globalCurrentParmArr.pop();
+		    app.getData(parmArrToGoBack);
+		}
+		
+		//remove last element from globalCurrentParmArr and call app.getData(globalCurrentParmArr)
+		
+            }
+	    else{
+		alert("globalCurrentParmArr is undefined or null");
+	    }
+
+	}
+	else if (currentPageId === "tempTask"){
+	    $.mobile.changePage("#index", { transition: 'slide' });
+	}
+    },   
+    // deviceready Event Handler
+    //
+    // The scope of 'this' is the event. In order to call the 'receivedEvent'
+    // function, we must explicitly call 'app.receivedEvent(...);'
+    onDeviceReady: function() {
+        app.receivedEvent('deviceready');
+	console.log("MobileMockUp2 in onDeviceReady() after calling app.receivedEvent()");
+
+	var onSuccess = function(someData){
+	    
+	    //someData=[{"address":"00:40:B3:8C:5F:16","name":"PAR-TMD200-5F16"}]
+	    console.log("MobileMockUp onDeviceReady().getPaired() onSuccess() someData=["+JSON.stringify(someData)+"]");
+	    
+	    if ((someData.length > 0) && ("address" in someData[0]) && (someData[0].address.trim() != "")){
+		
+	        var onDiscoveredUuids = function(deviceWithUuid){
+	          console.log("MobileMockUp onDeviceiscovered() onDeviceDiscoveredGotUuids=["+JSON.stringify(deviceWithUuid)+"]");
+		  if (('uuids' in deviceWithUuid) && (deviceWithUuid.uuids.length > 0) && (deviceWithUuid.uuids[0].trim() != "")){	
+	            tmdDevice.uuid = deviceWithUuid.uuids[0];
+		    alert("Discovery Complete!");
+		  }
+		  else{
+		    alert("Unable to detect device");
+		  }
+	        };
+
+	        var onDiscoverUuidsError = function(msg){
+		    alert("ERROR GETTING UUID msg=["+JSON.stringify(msg)+"]"); 
+	        };
+	    
+   	        tmdDevice.address = someData[0].address;
+	        //get uuid
+	        window.bluetooth.getUuids(onDiscoveredUuids, onDiscoverUuidsError, tmdDevice.address);		
+
+	    }
+	    else{
+		alert ("NO ADDRESS DETECTED");
+	    }
+	};
+
+	var onError = function(){
+	    alert("No paired device");
+	};
+	
+	window.bluetooth.getPaired(onSuccess, onError);
+	
+	$('#discoverDeviceButton').click(function(){
+	    app.discoverDevice();
+        });
+
+        $('#startButton').click(function(){
+            app.getDeptsForUser();
+	});
+
+        //$('#readTempFromTmdButton').click(function(){ app.readTempFromTMD() });
+
+	$('#mainPageHeaderId').bind( "tap", function(){
+	    if (('address' in tmdDevice) && ('uuid' in tmdDevice)){
+		alert("address: "+tmdDevice.address+" uuid: "+tmdDevice.uuid);
+	    }
+	    else{
+		
+	    }
+	});
+
+    },
+    getDeptsForUser: function(){
+
+	var assignedUser = $('#assignedUser').val();
+	pass = $('#pass').val();
+	server = $('#server').val();
+	port = $('#port').val();
+
+	if (assignedUser.trim() == ""){
+	    alert("Please enter a user name");
+	}
+	else if (pass.trim() == ""){
+	    alert("Password cannot be blank");
+	}
+	else if (server.trim() == ""){
+	    alert("Please enter a server name");
+	}
+	else if (port.trim() == ""){
+	    alert("Please enter a port number");
+	    var regex=/^[0-9]+$/;
+            if (port.match(regex)){
+                alert("Port number cannot contain any letters");
+            }
+	}
+	else{
+
+	
+	    console.log("getTasksByUser assignedUser=["+assignedUser+"] pass=["+pass+"] server=["+server+"] port=["+port+"]");
+
+	    var getDeptsForUserParms = new Array();
+	    getDeptsForUserParms[0]="SPX@getDeptsForUser";
+	    getDeptsForUserParms[1]="Departments";
+	    getDeptsForUserParms[2]=assignedUser;
+	    app.getData(getDeptsForUserParms);
+
+	    //$.mobile.changePage("#index", { transition: 'slide' });
+	}
+
+
+
+    },
+    getData: function(parmArr){
+	//parmArr[0] is endpoint
+	//parmArr[1] is displayHeader
+	//parmArr[2] is assignedUser RESTful parm = userName
+	//parmArr[3] is department   "            " dept
+	//parmArr[4] is checklist    "            " checklist
+	
+	var endpoint = parmArr[0];
+	var displayHeader = parmArr[1];
+	
+	var parms = new Object();
+
+
+	if (endpoint === "SPX@getDeptsForUser"){
+	    parms.userName = parmArr[2];
+	}
+	else if (endpoint === "SPX@getCheckLists"){
+	    parms.userName = parmArr[2];
+	    parms.dept = parmArr[3];
+	}
+	else if (endpoint === "SPX@getChecks"){
+	    parms.userName = parmArr[2];
+	    parms.dept = parmArr[3];
+	    parms.checklist = parmArr[4];
+	}
+	else if (endpoint === "SPX@setTemp"){
+	    parms.taskId = parmArr[6];
+	    parms.temp = Math.round(parmArr[9]);
+	}
+
+	
+	var serverName = server + ":" + port;
+	var encoded = Base64().encode(parms.userName + ':' + pass);
+	var authType =  'Basic ' + encoded;
+	
+	var option = endpoint+"?action=start&params=" + JSON.stringify(parms);
+	var URL = serverName + "/rest/bpm/wle/v1/service/"+option;
+
+	console.log("MobileMockUp getData() START parmArr=("+parmArr+")");
+	console.log("MobileMockUp getData() parms=("+JSON.stringify(parms)+")" + " endpoint=["+endpoint+"] displayHeader=["+displayHeader+"]");
+	console.log("MobileMockUp getData() URL=["+URL+"]");
+	
+	$.ajax({
+        url: URL,
+        type: "POST",
+        crossDomain: true,
+        jsonp: "callback",
+        beforeSend: function (xhr) {
+            xhr.setRequestHeader("Authorization", authType);
+        },
+        success: function (result) {
+
+	    globalCurrentParmArr = parmArr;
+	    console.log("MobileMockUp getData() ajax success result="+JSON.stringify(result));
+	    console.log("MobileMockUp getData() ajax success parmArr="+parmArr);
+	    console.log("MobileMockUp getData() ajax success globalCurrentParmArr="+globalCurrentParmArr);
+	    if (endpoint === "SPX@getDeptsForUser"){
+		$.mobile.changePage("#index", { transition: 'slide' });
+		app.displayData(parmArr, result.data.data.depts.items);
+            }
+      	    else if (endpoint === "SPX@getCheckLists"){
+		app.displayData(parmArr, result.data.data.checklists.items);
+            }
+	    else if (endpoint === "SPX@getChecks"){
+		app.displayData(parmArr, result.data.data.checks.items);
+	    }
+	    else if (endpoint === "SPX@setTemp"){
+
+
+		    $('#tmdTemp').text("The following temp:  " + parms.temp + " was sent successfully");
+
+		    $('#sendTempOkButton').show();
+		    $('#sendTempOkButton').off( 'click' );
+		    $('#sendTempOkButton').on('click', function(e) {
+
+			if (parmArr[3] === "Deli"){
+
+		          //lets pretend we got a corrective action if dept is Deli.
+		          //want to display corrective action page
+		          //when user hits OK do app.displayData(parmArr, result.data.data.checks.items);
+
+			   $.mobile.changePage("#correctiveAction", { transition: 'slide' });
+		           //when user hits OK on #correctiveAction do 
+		           //		    parmArr[0] = "SPX@getChecks";
+		           //              app.displayData(parmArr, result.data.data.checks.items);
+		           $( '#correctiveActionOkButton' ).off( 'click' );
+	                   $('#correctiveActionOkButton').on('click', function(e) {
+		               $.mobile.changePage("#index", { transition: 'slide' });
+		               parmArr[0] = "SPX@getChecks"; //on a successful SPX@setTemp we'll get back the same data as on a successful SPX@getChecks
+		               app.displayData(parmArr, result.data.data.checks.items);
+                           });
+			}
+			else{
+		            $.mobile.changePage("#index", { transition: 'slide' });
+		            parmArr[0] = "SPX@getChecks"; //on a successful SPX@setTemp we'll get back the same data as on a successful SPX@getChecks
+			    app.displayData(parmArr, result.data.data.checks.items);
+			}
+                    });
+		    
+		    /*$.mobile.changePage("#successfulSend", { transition: 'slide' });
+		    $('#successfulSendMessage').text("The following temp:  " + parms.temp + " was sent successfully");
+		    $( '#successfulSendOkButton' ).off( 'click' );
+	            $('#successfulSendOkButton').on('click', function(e) {
+		       $.mobile.changePage("#index", { transition: 'slide' });
+		       parmArr[0] = "SPX@getChecks"; //on a successful SPX@setTemp we'll get back the same data as on a successful SPX@getChecks
+		       app.displayData(parmArr, result.data.data.checks.items);
+                    });*/
+		    
+
+		 
+	    }
+
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            alert('Unable to retrieve '+displayHeader);
+
+                console.log('MobileMockUp getData() ajax error jqXHR=['+JSON.stringify(jqXHR)+']');
+                console.log('MobileMockUp getData() ajax error textStatus=['+textStatus+']');
+                console.log('MobileMockUp getData() ajax error errorThrown=['+errorThrown+']');
+            },
+        });
+    },
+    displayData: function(currParmArr, list){
+        //currParmArr[0] is endpoint
+	//currParmArr[1] is displayHeader
+	//currParmArr[2] is assignedUser
+	//currParmArr[3] is department
+	//currParmArr[4] is checklist
+	var currEndPt = currParmArr[0];
+	var headerText = currParmArr[1];
+	
+	console.log("MobileMockUp displayData() START");
+	console.log("MobileMockUp displayData() currParmArr=["+currParmArr+"]");
+	console.log("MobileMockUp displayTaskList() currEndPt="+currEndPt+" headerText="+headerText);
+	console.log("MobileMockUp displayTaskList() list=["+JSON.stringify(list)+"]");
+
+	var nextParmArr = new Array();
+	
+	var nextEndpt;
+        var nextHeaderText;
+    
+	if (currEndPt === "SPX@getDeptsForUser"){
+	    nextParmArr[0] = "SPX@getCheckLists"; //next endpoint
+	    nextParmArr[1] = "Check Lists";       //next header to display
+	    nextParmArr[2] = currParmArr[2];      //userName
+	}
+	else if (currEndPt === "SPX@getCheckLists"){
+	    nextParmArr[0] = "SPX@getChecks";	//next endpoint
+	    nextParmArr[1] = "HEADER";          //placeholder, next header to display set below
+	    nextParmArr[2] = currParmArr[2];    //userName
+	    nextParmArr[3] = currParmArr[3];    //dept
+	}
+	else if (currEndPt === "SPX@getChecks"){
+	    //this is either SPX@setTemp if its a temp task OR something else if it is not
+	    //must set this in loop
+	    nextParmArr[0] = "";	     //next endpoint based on temp task/non temp task
+	    nextParmArr[1] = "HEADER";       //placeholder, next header to display set below
+	    nextParmArr[2] = currParmArr[2]; //username
+	    nextParmArr[3] = currParmArr[3]; //dept
+	    nextParmArr[4] = currParmArr[4]; //checklist
+	}
+	else if (currEndPt === "SPX@setTemp"){
+	    //is we sent the temp successfully, we now have to act as though we just did successful SPX@getChecks
+	    //
+	    //this is either SPX@setTemp if its a temp task OR something else if it is not
+	    //must set this in loop
+	    nextParmArr[0] = "";	     //next endpoint based on temp task/non temp task 
+	    nextParmArr[1] = currParmArr[1];
+	    nextParmArr[2] = currParmArr[2]; //username
+	    nextParmArr[3] = currParmArr[3]; //dept
+	    nextParmArr[4] = currParmArr[4]; //checklist
+	}
+	
+	var htmlListString="";
+	var newLink;
+	
+	$('#headerText').text(headerText);
+
+        $('#taskListUL').empty();
+
+        for (var i = 0; i < list.length; i++){
+
+
+	    if (currEndPt === "SPX@getDeptsForUser"){
+	      nextParmArr[3] = list[i]; //the dept if user picks this item
+	      //doesn't work!	
+	      //parmArr["userName"]=currParmsObj.userName;
+	      //parmArr["dept"]=list[i];
+	    }
+            else if (currEndPt === "SPX@getCheckLists"){
+		nextParmArr[1] = list[i];  //the next header if user picks this item
+		nextParmArr[4] = list[i];  //the selected checklist if user picks this item
+	    }
+	    else if (currEndPt === "SPX@getChecks"){
+		//THIS IS WHERE WE CHECK IF TEMP TASK OR NOT TEMP TASK
+		nextParmArr[0] = "SPX@setTemp";
+		nextParmArr[1] = list[i];  //the next header if user picks this item
+		nextParmArr[5] = list[i];  //the selected checklist if user picks this item
+	    }
+	    
+	    if (currEndPt === "SPX@getChecks"){
+		//newLink="<a style='background:#e9e9e9;padding-top:5%;border-top: thin solid black; display:block;font-size:12px;font-weight:normal;color:#000000;text-decoration: none;' href='#' onclick='app.tempTask("+i+",\"" + list[i] + "\")'><pre><img src=\"img/task.png\"></img>   " + list[i] + "     </pre></a><br>";
+		
+		//newLink="<a style='background:#e9e9e9;padding-top:5%;border-top: thin solid black; display:block;font-size:12px;font-weight:normal;color:#000000;text-decoration: none;' href='#' onclick='app.tempTask("+i+",\"" + list[i] + "\")'><li class=\"styledli\" ><p style=\"white-space: normal !important;padding-top:5%;font-size:24px;font-weight:normal;color:#000000;padding-left:5%;padding-right:5%;\" ><img src=\"img/task.png\"></img>" + list[i] + "</p></li></a><br>";
+
+		//latest working
+		//newLink="<li class=\"styledliwithborder\" ><img style=\"background:#e9e9e9; margin-left:5%; margin-top:5%;width:10%;float:left;\" src=\"img/taskGrayBackgroundg.png\"></img><p style=\"white-space: normal !important;font-size:24px;font-weight:normal;color:#000000;padding-left:5%;padding-right:5%;width:70%;margin-top:5%;\" >" + list[i] + "</p></li><br>";
+
+		/*
+                    list[i] = "Cookie Dough:2000:T"
+                    split on ":"
+                    listElements = list[i].split(":");
+                    
+                    nextParmArr[6] = listElements[1];
+                    nextParmArr[7] = listElements[0];
+
+                */
+		var listElements = list[i].split(":");
+		//nextParmArr[6]=i;
+		//nextParmArr[7]=list[i];
+		nextParmArr[6]=listElements[1];
+		nextParmArr[7]=listElements[0];
+		
+		//newLink="<li data-parm1=\"" + nextParmArr + "\" class=\"styledliwithborder\" ><img style=\"background:#e9e9e9; margin-left:5%; margin-top:5%;width:10%;float:left;\" src=\"img/taskGrayBackgroundg.png\"></img><p style=\"white-space: normal !important;font-size:24px;font-weight:normal;color:#000000;padding-left:5%;padding-right:5%;width:70%;margin-top:5%;\" >" + list[i] + "</p></li><br>";
+		newLink="<li data-parm1=\"" + nextParmArr + "\" class=\"styledliwithborder\" ><img style=\"background:#e9e9e9; margin-left:5%; margin-top:5%;width:10%;float:left;\" src=\"img/taskGrayBackgroundg.png\"></img><p style=\"white-space: normal !important;font-size:24px;font-weight:normal;color:#000000;padding-left:5%;padding-right:5%;width:70%;margin-top:5%;\" >" + listElements[0] + "</p></li><br>";
+	    }
+	    else{
+
+		//working
+	        newLink = "<li data-parm1=\"" + nextParmArr + "\" class=\"styledli\" id=\"id" + i + "\" ><p style=\"white-space: normal !important;padding-top:5%;border-top: thin solid black;font-size:24px;font-weight:normal;color:#000000;padding-left:5%;padding-right:5%;\" >" + list[i] + "</p></li>";
+   
+	    }
+	    
+	    console.log("MobileMockUp displayData() adding ["+newLink+"]");	    
+	    htmlListString=htmlListString+newLink;
+
+	}
+
+
+	$( 'li' ).off( 'click' );
+
+
+	$('#taskListUL').append(htmlListString);
+	
+	if (currEndPt  !== "SPX@getChecks"){
+	    
+	    $('li').on('click', function(e) {
+
+		var myArr = $(this).data("parm1").split(",");
+		var alertMessage="";
+		for (var myArrIdx=0; myArrIdx < myArr.length; myArrIdx++){
+		    alertMessage = alertMessage + "myArr["+myArrIdx+"]=" + myArr[myArrIdx];
+		}
+		//alert(alertMessage);
+		app.getData(myArr);
+            });
+
+	}
+        else{
+
+	    $('li').on('click', function(e) {
+
+		var myArr = $(this).data("parm1").split(",");
+		var alertMessage="";
+		for (var myArrIdx=0; myArrIdx < myArr.length; myArrIdx++){
+		    alertMessage = alertMessage + "myArr["+myArrIdx+"]=" + myArr[myArrIdx];
+		}
+		//alert(alertMessage);
+		app.tempTask(myArr);
+            });
+	    
+	}
+	
+    $('[data-role="content"]').trigger('create');
+    $(".example-wrapper").iscrollview("refresh");
+
+    },    
+    tempTask: function(tempTaskParms){
+
+	var someId, someText;
+
+	someId = tempTaskParms[6];
+	someText = tempTaskParms[7];
+	
+	console.log("MobileMockUp tempTask() START tempTaskParms=("+tempTaskParms+") someId="+someId+" someText="+someText);
+
+	if (!('address' in tmdDevice) || !('uuid' in tmdDevice)){
+	    if (confirm('Put TMD in discoverable mode and hit OK')) {
+               app.discoverDevice();
+            } 
+	}
+	else{
+
+
+	    $.mobile.changePage("#tempTask", { 
+	   	                 transition: 'slide' });
+
+	    $('#tempTaskNameH1').text(someText);
+	    $('#tmdTemp').text("");
+	    $('#manualTempInput').val("");
+	    
+            $('#sendTempOkButton').hide();
+	    
+	    //dissociate click
+	    $( '#readTempFromTmdButton' ).off( 'click' );
+	    
+	    $('#readTempFromTmdButton').bind('click', function(e) {
+		app.readTempFromTMD(tempTaskParms);
+		
+	        //TO DO do i need this any more?
+                e.stopImmediatePropagation(); 
+	    });
+
+	    $( '#sendTempManuallyButton' ).off( 'click' );
+	    
+	    $('#sendTempManuallyButton').bind('click', function(e) {
+
+		var manuallyEnteredTemp = $('#manualTempInput').val();
+
+		//alert("You Hit Click To Send Temp manuallyEnteredTemp="+manuallyEnteredTemp);
+		
+		if (manuallyEnteredTemp.trim() != ""){
+		    
+		    //here is where we have to do getData() with endpoint=SPX@setTemp incomingParmArr[0]
+		    //                                           parms.id = incomingParmArr[6]
+		    //                                           parms.temp = incomingParmArr[7]
+		    var sendManuallyEnteredTempArr = new Array();
+		    sendManuallyEnteredTempArr = tempTaskParms;
+		    sendManuallyEnteredTempArr[8] = ""; 
+		    sendManuallyEnteredTempArr[9] = manuallyEnteredTemp;
+
+		    //if (sendTempArr[0] === "SPX@setTemp){
+		    //    need to send {"taskId":"sendTempArr[6]", "temp":"sendTempArr[9] }
+		    //}
+		    app.getData(sendManuallyEnteredTempArr);
+		    
+		    
+		    
+		}
+		
+	        //TO DO do i need this any more?
+                e.stopImmediatePropagation(); 
+	    });	    
+
+	}
+
+	
+    },
+    nonTempTask: function(someId, someText){
+            $.mobile.changePage("#nonTempTask", { 
+		  transition: 'slide' });	
+    },
+    discoverDevice: function(){
+	console.log("MobileMockUp pairWithDevice() START");
+	var onDeviceDiscovered = function(discoveredDevice){
+
+	    var onDeviceDiscoveredGotUuids = function(deviceWithUuid){
+	      console.log("MobileMockUp onDeviceDiscovered() onDeviceDiscoveredGotUuids=["+JSON.stringify(deviceWithUuid)+"]");
+		if (('uuids' in deviceWithUuid) && (deviceWithUuid.uuids.length > 0) && (deviceWithUuid.uuids[0].trim() != "")){	
+	            tmdDevice.uuid = deviceWithUuid.uuids[0];
+	            //$('#deviceNameTextArea').val("address: "+tmdDevice.address+" uuid: "+tmdDevice.uuid);
+		    //alert("Discovery Complete!");
+		}
+		else{
+		    alert("Unable to detect device");
+		}
+	    };
+
+	    var onDeviceDiscoveredOnError = function(msg){
+		console.log("MobileMockUp onDeviceDiscoveredOnError msg=["+JSON.stringify(msg)+"]"); 
+	    };
+	    
+	    console.log("MobileMockUp onDeviceDiscovered discoveredDevice=["+JSON.stringify(discoveredDevice)+"]");
+	    if (discoveredDevice.address.trim() != ""){
+		tmdDevice.address = discoveredDevice.address;
+	        //get uuid
+	        window.bluetooth.getUuids(onDeviceDiscoveredGotUuids, onDeviceDiscoveredOnError, tmdDevice.address);		
+	    }
+	    else{
+		alert("Device Discover Failed");
+	    }
+	
+	};
+	
+	var onDiscoveryFinished = function(){
+	};
+	window.bluetooth.startDiscovery(onDeviceDiscovered, onDiscoveryFinished, onDiscoveryFinished);
+    },
+    readTempFromTMD: function(incomingParmArr){
+	console.log("MobileMockUp readTempFromTMD() START incomingParmArr=("+incomingParmArr+")");
+	
+        if (confirm("Take Temperature")){
+
+	//alert ("Take Temperature");
+	
+    	    var onConnectionEstablished = function(){
+
+	        console.log("MobileMockup tempTask() onConnectionEstablished START");
+
+	        var stopConnectionManagerSuccess = function(){
+		    console.log("MobileMockUp tempTask() stopConnectionManager succeeded");
+	        };
+
+	        var stopConnectionManagerFail = function(){
+		    console.log("MobileMockUp tempTask() stopConnectionManager failed");
+	        };
+
+	        var disconnectSuccess = function(){
+		    console.log("MobileMockUp tempTask() disconnect succeeded");
+	        };
+
+	        var disconnectFail = function(){
+		    console.log("MobileMockUp tempTask() disconnect failed");
+	        };
+		
+	        var onMessageReceived = function(msg){
+		    //alert("RECEIVED msg=["+msg+"]");
+		    //$('#statusDiv').append('<p align="left" style="font-size:24px"> '+msg+'<p>');
+		    
+		    //$('#tmdTemp').text(msg);
+
+		    //msg contains temp like "c:22.1 f:71.7"
+		    
+		    //here is where we have to do getData() with endpoint=SPX@setTemp incomingParmArr[0]
+		    //                                           parms.id = incomingParmArr[6]
+		    //                                           parms.temp = incomingParmArr[7]
+		    var sendTempArr = new Array();
+		    sendTempArr = incomingParmArr;
+		    var ctempFtemp = msg.split(" ");
+		    sendTempArr[8] = ctempFtemp[0].substring(ctempFtemp[0].indexOf(":")+1);  //need everything after c:
+		    sendTempArr[9] = ctempFtemp[1].substring(ctempFtemp[1].indexOf(":")+1);  //need everything after f:     may also need to drop decimal pt
+
+		    //if (sendTempArr[0] === "SPX@setTemp){
+		    //    need to send {"taskId":"sendTempArr[6]", "temp":"sendTempArr[9] }
+		    //}
+		    app.getData(sendTempArr);
+		    
+		    //window.bluetooth.stopConnectionManager(stopConnectionManagerSuccess, stopConnectionManagerFail);
+		    
+		    console.log("MobileMockUp readTempFromTMD() calling window.bluetooth.disconnect()");
+                    window.bluetooth.disconnect(disconnectSuccess, disconnectFail);
+	        };
+
+	        var onConnectionLost = function(){
+		    //alert("CONNECTION LOST");
+		    //window.bluetooth.stopConnectionManager(stopConnectionManagerSuccess, stopConnectionManagerFail);
+		    console.log("MobileMockUp readTempFromTMD() calling window.bluetooth.disconnect()");
+                    window.bluetooth.disconnect(disconnectSuccess, disconnectFail);		    
+	        };
+
+	        console.log("MobileMockUp readTempFromTMD() calling window.bluetooth.startConnectionManager()");		
+	        window.bluetooth.startConnectionManager(onMessageReceived, onConnectionLost);
+	    };
+	
+	    var onError = function(msg){
+	      //alert("WE HAD ERROR msg=["+JSON.stringify(msg)+"]");
+	    };
+
+	    console.log("MobileMockUp readTempFromTMD() calling window.bluetooth.connect()");
+	    window.bluetooth.connect(onConnectionEstablished, onError, { address: tmdDevice.address,uuid: tmdDevice.uuid});
+	}
+    },
+    sendTemp: function(){
+        //alert ("SEND TEMP");	
+    },
+    // Update DOM on a Received Event
+    receivedEvent: function(id) {
+        console.log('Received Event: ' + id);
+    }
+};
+
+app.initialize();

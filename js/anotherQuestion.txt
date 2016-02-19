@@ -1,0 +1,25 @@
+I have the following code in a loop:
+
+                newLink = "<li class=\"styledli\" id=\"id" + i + "\" ><p>" + list[i] + "</p></li>";
+                htmlListString = htmlListString + newLink;
+		
+		$("#id"+i).data("parm1",list[i]);
+
+Outside the loop I do:
+
+        $('#listUL').empty();
+	
+	$('#listUL').on('click', 'li', function(e) {
+            alert("Works id="+this.id); // id of clicked li by directly accessing DOMElement property
+	    console.log("this.id="+this.id+" parm1="+JSON.stringify($("#"+this.id).data()));
+        });
+	
+	$('#listUL').append(htmlListString);
+
+When this runs the alert shows the proper id but console.log shows "parm1={}"
+
+I don't understand why.  I moved  `$('#listUL').empty();` before the loop ran and that had no effect.  I moved `$('#listUL').on('click',` after  `$('#listUL').append(htmlListString);` as well and that had no effect.
+
+How you do you used `.data()` to attach data items to and element and THEN how do you retrieve them in a click function? 
+
+
